@@ -1,7 +1,13 @@
 import numpy as np
+import matplotlib.pyplot as plt
 from tensorflow.keras.datasets import mnist
 
 (X_train, y_train), (X_test, y_test) = mnist.load_data()
+
+# selecting one test image for veiwing
+index = 4454 # change to test different images max : 10000
+image = X_test[index]
+label = y_test[index]
 
 # Reshapes the 28x28 images into 784-dimensional vectors
 X_train = X_train.reshape(X_train.shape[0], -1)
@@ -97,7 +103,7 @@ def backward(cache, y_true, lr=0.01):
     W1 -= lr * dW1
     b1 -= lr * db1
     
-epochs = 10
+epochs = 15
 batch_size = 64
 lr = 0.01
 
@@ -123,3 +129,28 @@ for epoch in range(epochs):
 preds, _ = forward(X_test)
 accuracy = np.mean(np.argmax(preds, axis=1) == np.argmax(y_test, axis=1))
 print(f"Test accuracy: {accuracy * 100:.2f}%")
+
+# get output probabilities
+output = preds[index]  # get the output for the selected image
+print("All output probabilities:") # print all probabilities in percentage
+print(f"0 : {output[0] * 100:.2f}%")
+print(f"1 : {output[1] * 100:.2f}%")
+print(f"2 : {output[2] * 100:.2f}%")
+print(f"3 : {output[3] * 100:.2f}%")
+print(f"4 : {output[4] * 100:.2f}%")
+print(f"5 : {output[5] * 100:.2f}%")
+print(f"6 : {output[6] * 100:.2f}%")
+print(f"7 : {output[7] * 100:.2f}%")
+print(f"8 : {output[8] * 100:.2f}%")
+print(f"9 : {output[9] * 100:.2f}%")
+
+# show predicted digit
+predicted_label = np.argmax(output)
+print("Predicted digit:", predicted_label)
+
+plt.figure(figsize=(3, 3))   # optional: set figure size
+plt.imshow(image, cmap='gray')  # grayscale
+plt.title(f"Label: {label}")
+plt.axis('off')  # hide axes
+plt.show()
+
