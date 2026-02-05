@@ -1,17 +1,13 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.widgets import Slider
 from tensorflow.keras.datasets import mnist
 
-(X_train, y_train), (X_test, y_test) = mnist.load_data()
-
-# selecting one test image for veiwing
-index = 4454 # change to test different images max : 10000
-image = X_test[index]
-label = y_test[index]
+(X_train, y_train), (x_test, y_test) = mnist.load_data()
 
 # Reshapes the 28x28 images into 784-dimensional vectors
 X_train = X_train.reshape(X_train.shape[0], -1)
-X_test  = X_test.reshape(X_test.shape[0], -1)
+X_test  = x_test.reshape(x_test.shape[0], -1)
 
 
 # Normalizes pixel values to the range [0, 1]
@@ -25,7 +21,7 @@ def one_hot(y, num_classes=10):
     return out
 
 y_train = one_hot(y_train)
-y_test  = one_hot(y_test)
+Y_test  = one_hot(y_test)
 
 # selects the random seed for reproducibility
 np.random.seed(42)
@@ -127,30 +123,47 @@ for epoch in range(epochs):
     print(f"Epoch {epoch+1}, Loss: {total_loss:.4f}")
     
 preds, _ = forward(X_test)
-accuracy = np.mean(np.argmax(preds, axis=1) == np.argmax(y_test, axis=1))
+accuracy = np.mean(np.argmax(preds, axis=1) == np.argmax(Y_test, axis=1))
 print(f"Test accuracy: {accuracy * 100:.2f}%")
 
-# get output probabilities
-output = preds[index]  # get the output for the selected image
-print("All output probabilities:") # print all probabilities in percentage
-print(f"0 : {output[0] * 100:.2f}%")
-print(f"1 : {output[1] * 100:.2f}%")
-print(f"2 : {output[2] * 100:.2f}%")
-print(f"3 : {output[3] * 100:.2f}%")
-print(f"4 : {output[4] * 100:.2f}%")
-print(f"5 : {output[5] * 100:.2f}%")
-print(f"6 : {output[6] * 100:.2f}%")
-print(f"7 : {output[7] * 100:.2f}%")
-print(f"8 : {output[8] * 100:.2f}%")
-print(f"9 : {output[9] * 100:.2f}%")
+# change to test different images max : 10000
+index = 0
 
-# show predicted digit
-predicted_label = np.argmax(output)
-print("Predicted digit:", predicted_label)
+# Create figure and axis
+fig, ax = plt.subplots(figsize=(8, 5))
+plt.subplots_adjust(bottom=0.25)  # leave space for slider
 
-plt.figure(figsize=(3, 3))   # optional: set figure size
-plt.imshow(image, cmap='gray')  # grayscale
-plt.title(f"Label: {label}")
-plt.axis('off')  # hide axes
+# Display the first image
+image_display = ax.imshow(x_test[index], cmap='gray')
+ax.set_title(f"True: {y_test[index]}")
+ax.axis('off')
+
+
+# Create a text object to display probabilities
+prob_text = ax.text(1.05, 0.5, '', transform=ax.transAxes, fontsize=10,
+                    verticalalignment='center', family='monospace')
+
+# Add slider
+ax_slider = plt.axes([0.25, 0.1, 0.5, 0.03])
+slider = Slider(ax_slider, 'Index', 0, len(x_test)-1, valinit=index, valstep=1)
+
+# Function to update image and predictions when slider moves
+def update(val):
+    index = int(slider.val)
+    image = x_test[index]
+    image_display.set_data(image)
+    ax.set_title(f"True: {y_test[index]}")
+
+    # get output probabilities
+    output = preds[index]  # get the output for the selected image
+    # Format probabilities as text
+    prob_lines = ["All output probabilities:"]
+    for i, p in enumerate(output):
+        prob_lines.append(f"{i} : {p*100:5.2f}%")
+    prob_text.set_text("\n".join(prob_lines))
+
+    fig.canvas.draw_idle()
+
+slider.on_changed(update)
+
 plt.show()
-
