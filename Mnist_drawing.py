@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider
+from matplotlib.widgets import Button
 from tensorflow.keras.datasets import mnist
 
 (X_train, y_train), (x_test, y_test) = mnist.load_data()
@@ -127,7 +128,6 @@ accuracy = np.mean(np.argmax(preds, axis=1) == np.argmax(Y_test, axis=1))
 print(f"Test accuracy: {accuracy * 100:.2f}%")
 
 # Visualization and drawing interface
-index = 0
 drawing = False
 
 # Create empty 28x28 canvas
@@ -138,7 +138,7 @@ plt.subplots_adjust(right=0.75)
 
 # Show canvas
 img = ax.imshow(canvas, cmap="gray", vmin=0, vmax=1)
-ax.set_title("Draw a digit (hold left mouse)")
+ax.set_title("Draw a digit or test images using slider")
 ax.axis("off")
 
 # Probability text
@@ -148,11 +148,13 @@ prob_text = ax.text(
     verticalalignment="center"
 )
 
-
+# Create a button axis (x, y, width, height)
+ax_clear = plt.axes([0.8, 0.1, 0.15, 0.06])
+clear_button = Button(ax_clear, "Clear")
 
 # Add slider
 ax_slider = plt.axes([0.25, 0.01, 0.5, 0.03])
-slider = Slider(ax_slider, 'Index', 0, len(x_test)-1, valinit=index, valstep=1)
+slider = Slider(ax_slider, 'Index', 0, len(x_test)-1, valinit=0, valstep=1)
 
 
 
@@ -160,7 +162,7 @@ slider = Slider(ax_slider, 'Index', 0, len(x_test)-1, valinit=index, valstep=1)
 # Draw helper
 def draw_pixel(x, y, radius=1):
     if 0 <= x < 28 and 0 <= y < 28:
-                canvas[y, x] += 0.2  # white ink
+                canvas[y, x] += 0.4  # white ink
                 if canvas[y, x] > 1:
                     canvas[y, x] = 1
     for dx in range(-radius, radius+1):
@@ -177,7 +179,7 @@ def draw_pixel(x, y, radius=1):
 def update_prediction():
     input_img = canvas.reshape(1, 28, 28).flatten() 
     
-    output= forward(input_img)[0].flatten()  # get output probabilities
+    output = forward(input_img)[0].flatten()  # get output probabilities
 
     prob_lines = ["All output probabilities:"]
     for i, p in enumerate(output):
@@ -203,40 +205,31 @@ def on_move(event):
         update_prediction()
         fig.canvas.draw_idle()
 
-# Clear canvas with key press
-def on_key(event):
-    if event.key == "c":
-        canvas[:] = 0
-        img.set_data(canvas)
-        prob_text.set_text("")
-        fig.canvas.draw_idle()
+def clear_canvas(event):
+    canvas[:] = 0.0   # white canvas (use 0.0 if black background)
+    img.set_data(canvas)
+    ax.set_title("Draw a digit or test images using slider")
+    update_prediction()
+    fig.canvas.draw_idle()
 
 # Function to update image and predictions when slider moves
 def update(val):
     global canvas
-    index = int(slider.val)
-    image = x_test[index]
-    
+    image = x_test[int(slider.val)]
     # Normalize MNIST image to 0–1
     canvas[:] = image.astype(np.float32) / 255.0
     img.set_data(canvas)
-    # get output probabilities
-    output = preds[index]  # get the output for the selected image
-    # Format probabilities as text
-    prob_lines = ["All output probabilities:"]
-    for i, p in enumerate(output):
-        prob_lines.append(f"{i} : {p*100:5.2f}%")
-    prob_text.set_text("\n".join(prob_lines))
-
+    update_prediction()
     fig.canvas.draw_idle()
 
 # Bind events
 fig.canvas.mpl_connect("button_press_event", on_press)
 fig.canvas.mpl_connect("button_release_event", on_release)
 fig.canvas.mpl_connect("motion_notify_event", on_move)
-fig.canvas.mpl_connect("key_press_event", on_key)
+clear_button.on_clicked(clear_canvas)
 slider.on_changed(update)
 
-update(index)  # show initial probabilities for the first image
+update_prediction()
+fig.canvas.draw_idle()
 
 plt.show()
