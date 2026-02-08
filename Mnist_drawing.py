@@ -4,67 +4,48 @@ from matplotlib.widgets import Slider
 from matplotlib.widgets import Button
 import Mnist_neural_net as nn
 
+Hidden1_size = 64
+Hidden2_size = 32
+
+lr = 0.2
+epochs = 10
+
 data = np.load("assets/mnist.npz")
-training_data = np.load(f"training_data/W_and_b(64, 32, 10) epoch(20).npz")
+try:
+    training_data = np.load(f"training_data/nodes({Hidden1_size}, {Hidden2_size}) epoch({epochs}) lr({lr}).npz")
+except FileNotFoundError:
+    training_data = None
 
+if training_data is None:
+    print("Training data not found. Please wait while neural network trains first.")
+    nn.train_data_set(Hidden1_size, Hidden2_size, epochs, lr)
+    training_data = np.load(f"training_data/nodes({Hidden1_size}, {Hidden2_size}) epoch({epochs}) lr({lr}).npz")
 
+# Load test data for images and preprocessing
 x_test  = data["x_test"]
 y_test  = data["y_test"]
 
+# Preprocess test data
 X_test  = x_test.reshape(x_test.shape[0], -1)
+Y_test  = nn.one_hot(y_test)
 
-
-# Converts labels to one-hot encoding
-def one_hot(y, num_classes=10):
-    out = np.zeros((y.shape[0], num_classes))
-    out[np.arange(y.shape[0]), y] = 1
-    return out
-
-Y_test  = one_hot(y_test)
-
-# Initializes weights and biases for a 3-layer neural network
-# Input layer: 784 neurons (28x28 pixels) connected to hidden layer 1 with 128 neurons
+# loads the weights and bias based of trained data
 W1 = training_data["W1"]
 b1 = training_data["b1"]
 
-# Hidden layer: 128 neurons connected to hidden layer 2 with 64 neurons
 W2 = training_data["W2"]
 b2 = training_data["b2"]
 
-# hidden layer 2: 64 neurons connected to output layer with 10 neurons (for 10 classes)
 W3 = training_data["W3"]
 b3 = training_data["b3"]
 
-# Activation functions and loss function
-def relu(x):
-    return np.maximum(0, x)
-
-def relu_deriv(x):
-    return (x > 0).astype(float)
-
-# Softmax function for output layer
-def softmax(x):
-    exp_x = np.exp(x - np.max(x, axis=1, keepdims=True))
-    return exp_x / np.sum(exp_x, axis=1, keepdims=True)
-
-# Forward pass through the network
-def forward(X):
-    z1 = np.dot(X, W1) + b1
-    a1 = relu(z1)
-
-    z2 = np.dot(a1, W2) + b2
-    a2 = relu(z2)
-
-    z3 = np.dot(a2, W3) + b3
-    output = softmax(z3)
-
-    return output
-    
-preds = forward(X_test)
+# tests accuracy
+preds = nn.test_forward(X_test, W1, b1, W2, b2, W3, b3)
 accuracy = np.mean(np.argmax(preds, axis=1) == np.argmax(Y_test, axis=1))
 print(f"Test accuracy: {accuracy * 100:.2f}%")
 
 # Visualization and drawing interface
+
 drawing = False
 
 # Create empty 28x28 canvas
@@ -89,14 +70,37 @@ prob_text = ax.text(
 ax_clear = plt.axes([0.8, 0.1, 0.15, 0.06])
 clear_button = Button(ax_clear, "Clear")
 
+# Create a button axis (x, y, width, height)
+ax_test = plt.axes([0.8, 0.1, 0.15, 0.06])
+test_button = Button(ax_test, "test_now")
+test_button.ax.set_visible(False)
+
+# Create a button axis (x, y, width, height)
+ax_train = plt.axes([0.8, 0.2, 0.15, 0.06])
+training_button = Button(ax_train, "training view")
+
 # Add slider
 ax_slider = plt.axes([0.25, 0.01, 0.5, 0.03])
 slider = Slider(ax_slider, 'Index', 0, len(x_test)-1, valinit=0, valstep=1)
 
+# Slider axes (left, bottom, width, height)
+ax_s1 = plt.axes([0.15, 0.50, 0.5, 0.03])
+ax_s2 = plt.axes([0.15, 0.40, 0.5, 0.03])
+ax_s3 = plt.axes([0.15, 0.30, 0.5, 0.03])
+ax_s4 = plt.axes([0.15, 0.20, 0.5, 0.03])
 
+s1 = Slider(ax_s1, "hidden_layer1", 0, valmax = 200, valstep = 1, valinit = Hidden1_size)
+s2 = Slider(ax_s2, "hidden_layer2", 0, valmax = 100, valstep = 1, valinit = Hidden2_size)
+s3 = Slider(ax_s3, "epochs", 0, valmax = 50, valstep = 1, valinit = epochs)
+s4 = Slider(ax_s4, "lr", 0, valmax = 1, valstep = 0.01, valinit = lr)
 
+def set_slider_visible(slider, visible):
+    slider.ax.set_visible(visible)
+    slider.label.set_visible(visible)
+    slider.valtext.set_visible(visible)
+    s.set_active(visible)
 
-# Draw helper
+# function for Drawing
 def draw_pixel(x, y, radius=1):
     if 0 <= x < 28 and 0 <= y < 28:
                 canvas[y, x] += 0.4  # white ink
@@ -116,9 +120,9 @@ def draw_pixel(x, y, radius=1):
 def update_prediction():
     input_img = canvas.reshape(1, 28, 28).flatten() 
     
-    output = forward(input_img).flatten()  # get output probabilities
+    output = nn.test_forward(input_img, W1, b1, W2, b2, W3, b3).flatten()  # get output probabilities
 
-    prob_lines = ["All output probabilities:"]
+    prob_lines = ["All output\nprobabilities:"]
     for i, p in enumerate(output):
         prob_lines.append(f"{i} : {p*100:5.2f}%")
     prob_text.set_text("\n".join(prob_lines))
@@ -159,14 +163,41 @@ def update(val):
     update_prediction()
     fig.canvas.draw_idle()
 
+def change_view(event):
+    
+    training_button.label.set_text("drawing view" if slider.ax.get_visible() else "training view")
+    
+    for s in [s1, s2, s3, s4]:
+        set_slider_visible(s, not s.ax.get_visible())
+    
+    for i in (slider, clear_button, test_button):
+        i.set_active(not i.ax.get_visible())
+        i.ax.set_visible(not i.ax.get_visible())
+    
+    for i in (img, prob_text):
+        i.set_visible(not i.get_visible())
+    
+    fig.canvas.draw_idle()
+
+def redraw(val):
+    fig.canvas.draw_idle()
+
 # Bind events
 fig.canvas.mpl_connect("button_press_event", on_press)
 fig.canvas.mpl_connect("button_release_event", on_release)
 fig.canvas.mpl_connect("motion_notify_event", on_move)
 clear_button.on_clicked(clear_canvas)
+training_button.on_clicked(change_view)
+#test_button.on_clicked(run_neural_net)
 slider.on_changed(update)
+for s in [s1, s2, s3, s4]:
+    set_slider_visible(s, False)
+    s.on_changed(redraw)
+    
+
 
 update_prediction()
 fig.canvas.draw_idle()
 
 plt.show()
+
