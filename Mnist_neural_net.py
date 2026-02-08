@@ -1,9 +1,20 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider
-from tensorflow.keras.datasets import mnist
 
-(X_train, y_train), (x_test, y_test) = mnist.load_data()
+HIDDEN1_SIZE = 64
+HIDDEN2_SIZE = 32
+
+epochs = 20
+batch_size = HIDDEN1_SIZE
+lr = 0.1
+
+data = np.load("assets/mnist.npz")
+
+X_train = data["x_train"]
+y_train = data["y_train"]
+x_test  = data["x_test"]
+y_test  = data["y_test"]
 
 # Reshapes the 28x28 images into 784-dimensional vectors
 X_train = X_train.reshape(X_train.shape[0], -1)
@@ -28,15 +39,15 @@ np.random.seed(42)
 
 # Initializes weights and biases for a 3-layer neural network
 # Input layer: 784 neurons (28x28 pixels) connected to hidden layer 1 with 128 neurons
-W1 = np.random.randn(784, 128) * 0.01
-b1 = np.zeros((1, 128))
+W1 = np.random.randn(784, HIDDEN1_SIZE) * 0.01
+b1 = np.zeros((1, HIDDEN1_SIZE))
 
 # Hidden layer: 128 neurons connected to hidden layer 2 with 64 neurons
-W2 = np.random.randn(128, 64) * 0.01
-b2 = np.zeros((1, 64))
+W2 = np.random.randn(HIDDEN1_SIZE, HIDDEN2_SIZE) * 0.01
+b2 = np.zeros((1, HIDDEN2_SIZE))
 
 # hidden layer 2: 64 neurons connected to output layer with 10 neurons (for 10 classes)
-W3 = np.random.randn(64, 10) * 0.01
+W3 = np.random.randn(HIDDEN2_SIZE, 10) * 0.01
 b3 = np.zeros((1, 10))
 
 # Activation functions and loss function
@@ -98,10 +109,6 @@ def backward(cache, y_true, lr=0.01):
     b2 -= lr * db2
     W1 -= lr * dW1
     b1 -= lr * db1
-    
-epochs = 15
-batch_size = 64
-lr = 0.01
 
 for epoch in range(epochs):
     perm = np.random.permutation(len(X_train))
@@ -126,44 +133,12 @@ preds, _ = forward(X_test)
 accuracy = np.mean(np.argmax(preds, axis=1) == np.argmax(Y_test, axis=1))
 print(f"Test accuracy: {accuracy * 100:.2f}%")
 
-# change to test different images max : 10000
-index = 0
-
-# Create figure and axis
-fig, ax = plt.subplots(figsize=(8, 5))
-plt.subplots_adjust(bottom=0.25)  # leave space for slider
-
-# Display the first image
-image_display = ax.imshow(x_test[index], cmap='gray')
-ax.set_title(f"True: {y_test[index]}")
-ax.axis('off')
-
-
-# Create a text object to display probabilities
-prob_text = ax.text(1.05, 0.5, '', transform=ax.transAxes, fontsize=10,
-                    verticalalignment='center', family='monospace')
-
-# Add slider
-ax_slider = plt.axes([0.25, 0.1, 0.5, 0.03])
-slider = Slider(ax_slider, 'Index', 0, len(x_test)-1, valinit=index, valstep=1)
-
-# Function to update image and predictions when slider moves
-def update(val):
-    index = int(slider.val)
-    image = x_test[index]
-    image_display.set_data(image)
-    ax.set_title(f"True: {y_test[index]}")
-
-    # get output probabilities
-    output = preds[index]  # get the output for the selected image
-    # Format probabilities as text
-    prob_lines = ["All output probabilities:"]
-    for i, p in enumerate(output):
-        prob_lines.append(f"{i} : {p*100:5.2f}%")
-    prob_text.set_text("\n".join(prob_lines))
-
-    fig.canvas.draw_idle()
-
-slider.on_changed(update)
-
-plt.show()
+np.savez(
+    f"training_data/nodes({b1.size}, {b2.size}) epoch({epochs}) lr({lr}).npz",
+    W1 = W1,
+    b1 = b1,
+    W2 = W2,
+    b2 = b2,
+    W3 = W3,
+    b3 = b3
+)
