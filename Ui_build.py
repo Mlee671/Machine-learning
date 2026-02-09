@@ -1,23 +1,15 @@
+import os
 import numpy as np
 import Mnist_neural_net as nn
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider
 from matplotlib.widgets import Button
 
-def return_to_drawing():
-    global W1, b1, W2, b2, W3, b3
-    W1, b1, W2, b2, W3, b3 = nn.load_training_data()
-    drawing(nn.get_images())
+def show_screen(ai_model):
+    global canvas, drawing
 
-def set_parameters(node_layer1, node_layer_2, epochs, lr):
-    nn.set_parameters(node_layer1, node_layer_2, epochs, lr)
-
-def drawing(x_test):
-    global canvas, mouse_held, W1, b1, W2, b2, W3, b3
-
-    # Visualization and drawing interface
-
-    mouse_held = False
+    drawing = False
+    image_set = ai_model.get_images()
 
     # Create empty 28x28 canvas
     canvas = np.zeros((28, 28), dtype=np.float32)
@@ -47,7 +39,7 @@ def drawing(x_test):
 
     # Add slider
     ax_slider = plt.axes([0.2, 0.05, 0.5, 0.03])
-    slider = Slider(ax_slider, 'Test image', 0, len(x_test)-1, valinit=0, valstep=1)
+    slider = Slider(ax_slider, 'Test image', 0, len(image_set)-1, valinit=0, valstep=1)
 
     # Slider axes (left, bottom, width, height)
     ax_s1 = plt.axes([0.72, 0.90, 0.2, 0.03])
@@ -55,6 +47,7 @@ def drawing(x_test):
     ax_s3 = plt.axes([0.72, 0.70, 0.2, 0.03])
     ax_s4 = plt.axes([0.72, 0.60, 0.2, 0.03])
 
+    hidden_layer1, hidden_layer2, epochs, learning_rate = ai_model.get_parameters()
     s1 = Slider(ax_s1, "hidden_layer1", 1, valmax = 200, valstep = 1, valinit = hidden_layer1)
     s2 = Slider(ax_s2, "hidden_layer2", 1, valmax = 100, valstep = 1, valinit = hidden_layer2)
     s3 = Slider(ax_s3, "epochs", 1, valmax = 20, valstep = 1, valinit = epochs)
@@ -80,7 +73,7 @@ def drawing(x_test):
     def update_prediction():
         input_img = canvas.reshape(1, 28, 28).flatten() 
         
-        output = nn.test_forward(input_img, W1, b1, W2, b2, W3, b3).flatten()  # get output probabilities
+        output = ai_model.test_forward(input_img).flatten()  # get output probabilities
 
         prob_lines = ["All output\nprobabilities:"]
         for i, p in enumerate(output):
@@ -89,16 +82,16 @@ def drawing(x_test):
 
     # Mouse events
     def on_press(event):
-        global mouse_held
+        global drawing
         if event.inaxes == ax:
-            mouse_held = True
+            drawing = True
 
     def on_release(event):
-        global mouse_held
-        mouse_held = False
+        global drawing
+        drawing = False
 
     def on_move(event):
-        if mouse_held and event.inaxes == ax:
+        if drawing and event.inaxes == ax:
             x = int(event.xdata)
             y = int(event.ydata)
             draw_pixel(x, y, radius=1)
@@ -109,16 +102,14 @@ def drawing(x_test):
     def clear_canvas(event):
         canvas[:] = 0.0   # white canvas (use 0.0 if black background)
         img.set_data(canvas)
-        s1.reset()
-        s2.reset()
-        s3.reset()
-        s4.reset()
+        for s in [s1, s2, s3, s4]:
+            s.reset()
         update_prediction()
         fig.canvas.draw_idle()
 
     # Function to update image and predictions when slider moves
     def update(val):
-        image = x_test[int(slider.val)]
+        image = image_set[int(slider.val)]
         # Normalize MNIST image to 0–1
         canvas[:] = image.astype(np.float32) / 255.0
         img.set_data(canvas)
@@ -126,24 +117,16 @@ def drawing(x_test):
         fig.canvas.draw_idle()
 
     def train(event):
-        global W1, b1, W2, b2, W3, b3
-        new_hidden1 = int(s1.val)
-        new_hidden2 = int(s2.val)
-        new_epochs = int(s3.val)
-        new_lr = s4.val
+        new_param = []
+        for s in [s1, s2, s3, s4]:
+            new_param.append(s.val)
+            s.valinit = s.val  # Update valinit to current value for next reset
 
-        nn.set_parameters(new_hidden1, new_hidden2, new_epochs, new_lr)
-
-        s1.valinit = new_hidden1
-        s2.valinit = new_hidden2
-        s3.valinit = new_epochs
-        s4.valinit = new_lr
-        
+        ai_model.set_parameters(int(new_param[0]), int(new_param[1]), int(new_param[2]), new_param[3])
+        cache.append(new_param)
         # Reload trained data
-        W1, b1, W2, b2, W3, b3 = nn.load_training_data()
+        ai_model.load_training_data_set()
         update(val=slider.val)  # Update the display with new model predictions
-        
-        
     
     # Bind events
     fig.canvas.mpl_connect("button_press_event", on_press)
@@ -157,15 +140,24 @@ def drawing(x_test):
     fig.canvas.draw_idle()
 
     plt.show()
-
     
-#start up
-
-hidden_layer1 = 64
-hidden_layer2 = 32
-epochs = 10
-learning_rate = 0.2
-
-set_parameters(hidden_layer1, hidden_layer2, epochs, learning_rate)
-
-return_to_drawing()
+def Start():
+    global cache
+    print("Starting program...")
+    cache = []
+    
+def Finish():
+    print("Program finished.")
+    for item in cache:
+        file_path = f"training_data/nodes({item[0]}, {item[1]}) epoch({item[2]}) lr({item[3]:.2f}).npz"
+        if os.path.isfile(file_path):
+            os.remove(file_path) 
+            
+if __name__ == "__main__":
+    #start up
+    Start()
+    
+    ai_model = nn.MnistNeuralNet()
+    show_screen(ai_model)
+    
+    Finish()
