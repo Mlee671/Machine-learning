@@ -3,12 +3,12 @@ import numpy as np
 
 class MnistNeuralNet:
     
-    def __init__(self, hidden1_size=64, hidden2_size=32, epochs=10, lr=0.1):
+    def __init__(self, hidden1_size=64, hidden2_size=32, epochs=10, lr=0.1, data=None):
         self.hidden1_size = hidden1_size
         self.hidden2_size = hidden2_size
         self.epochs = epochs
         self.lr = lr
-        self.data = np.load("assets/mnist.npz")
+        self.data = data if data is not None else self.load_mnist_data()
         print(self.hidden1_size, self.hidden2_size, self.epochs, f"{self.lr:.2f}")
         self.load_training_data_set()
 

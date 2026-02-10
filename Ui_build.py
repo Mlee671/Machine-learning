@@ -157,7 +157,8 @@ if __name__ == "__main__":
     #start up
     Start()
     
-    ai_model = nn.MnistNeuralNet()
+    data = np.load("assets/mnist.npz")
+    ai_model = nn.MnistNeuralNet(data=data)
     show_screen(ai_model)
     
     Finish()
