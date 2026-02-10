@@ -56,19 +56,19 @@ def show_screen(ai_model):
     # function for Drawing
     def draw_pixel(x, y, radius=1):
         if 0 <= x < 28 and 0 <= y < 28:
-                    canvas[y, x] += 0.4  # white ink
-                    if canvas[y, x] > 1:
-                        canvas[y, x] = 1
-        for dx in range(-radius, radius+1):
-            for dy in range(-radius, radius+1):
-                xi = int(x + dx)
-                yi = int(y + dy)
-                if xi == x and yi == y:
-                    continue
-                if 0 <= xi < 28 and 0 <= yi < 28:
-                    canvas[yi, xi] += 0.1  # white ink
-                    if canvas[yi, xi] > 1:
-                        canvas[yi, xi] = 1
+            canvas[y, x] += 0.4  # white ink
+            if canvas[y, x] > 1:
+                canvas[y, x] = 1
+            for dx in range(-radius, radius+1):
+                for dy in range(-radius, radius+1):
+                    xi = int(x + dx)
+                    yi = int(y + dy)
+                    if xi == x and yi == y:
+                        continue
+                    if 0 <= xi < 28 and 0 <= yi < 28:
+                        canvas[yi, xi] += 0.1  # white ink
+                        if canvas[yi, xi] > 1:
+                            canvas[yi, xi] = 1
 
     def update_prediction():
         input_img = canvas.reshape(1, 28, 28).flatten() 
