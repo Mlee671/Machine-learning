@@ -2,6 +2,7 @@ import os
 import numpy as np
 import Mnist_neural_net as nn
 import matplotlib.pyplot as plt
+from enum import Enum
 from matplotlib.widgets import Slider
 from matplotlib.widgets import Button
 
@@ -10,9 +11,11 @@ def show_screen(ai_model):
 
     drawing = False
     image_set = ai_model.get_images()
+    image_size = image_set[0].shape
+    print(f"Image size: {image_size}")
 
-    # Create empty 28x28 canvas
-    canvas = np.zeros((28, 28), dtype=np.float32)
+    # Create empty canvas based on image size
+    canvas = np.zeros(image_size, dtype=np.float32)
 
     fig, ax = plt.subplots(figsize=(16, 6))
     plt.subplots_adjust(right=0.75)
@@ -55,7 +58,7 @@ def show_screen(ai_model):
 
     # function for Drawing
     def draw_pixel(x, y, radius=1):
-        if 0 <= x < 28 and 0 <= y < 28:
+        if 0 <= x < image_size[1] and 0 <= y < image_size[0]:
             canvas[y, x] += 0.4  # white ink
             if canvas[y, x] > 1:
                 canvas[y, x] = 1
@@ -65,19 +68,24 @@ def show_screen(ai_model):
                     yi = int(y + dy)
                     if xi == x and yi == y:
                         continue
-                    if 0 <= xi < 28 and 0 <= yi < 28:
+                    if 0 <= xi < image_size[1] and 0 <= yi < image_size[0]:
                         canvas[yi, xi] += 0.1  # white ink
                         if canvas[yi, xi] > 1:
                             canvas[yi, xi] = 1
 
     def update_prediction():
-        input_img = canvas.reshape(1, 28, 28).flatten() 
+        input_img = canvas.reshape(1, image_size[0], image_size[1]).flatten() 
         
         output = ai_model.test_forward(input_img).flatten()  # get output probabilities
 
         prob_lines = ["All output\nprobabilities:"]
+        if selected_data_set == Data_set.FASHION:
+            labels = ["T-shirt ", "Trouser ", "Pullover", "Dress   ", "Coat    ", "Sandal  ", "Shirt   ",
+                      "Sneaker ", "Bag     ", "Ankle boot"]
+        elif selected_data_set == Data_set.NUMBERS:
+            labels = [str(i) for i in range(10)]
         for i, p in enumerate(output):
-            prob_lines.append(f"{i} : {p*100:5.2f}%")
+            prob_lines.append(f"{labels[i]} : {p*100:5.2f}%")
         prob_text.set_text("\n".join(prob_lines))
 
     # Mouse events
@@ -140,7 +148,14 @@ def show_screen(ai_model):
     fig.canvas.draw_idle()
 
     plt.show()
-    
+
+def load_labels():
+    if selected_data_set == Data_set.FASHION:
+        return ["T-shirt ", "Trouser ", "Pullover", "Dress   ", "Coat    ", "Sandal  ", "Shirt   ",
+                "Sneaker ", "Bag     ", "Ankle boot"]
+    elif selected_data_set == Data_set.NUMBERS:
+        return [str(i) for i in range(10)]
+
 def Start():
     global cache
     print("Starting program...")
@@ -152,13 +167,23 @@ def Finish():
         file_path = f"training_data/nodes({item[0]}, {item[1]}) epoch({item[2]}) lr({item[3]:.2f}).npz"
         if os.path.isfile(file_path):
             os.remove(file_path) 
-            
+
+def create_new_model():
+    data = np.load(f"assets/{selected_data_set.value}.npz")
+    ai_model = nn.MnistNeuralNet(data = data, type = selected_data_set)
+    return ai_model
+
+class Data_set(Enum):
+    NUMBERS = "mnist"
+    FASHION = "fashion_mnist"
+
+       
 if __name__ == "__main__":
+    global selected_data_set
     #start up
     Start()
-    
-    data = np.load("assets/mnist.npz")
-    ai_model = nn.MnistNeuralNet(data=data)
+    selected_data_set = Data_set.NUMBERS # Change to Data_set.NUMBERS for MNIST or PICTURES for CIFAR-10
+    ai_model = create_new_model()
     show_screen(ai_model)
     
     Finish()

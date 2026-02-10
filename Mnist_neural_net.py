@@ -1,14 +1,16 @@
 
 import numpy as np
+from pyparsing import Enum
 
 class MnistNeuralNet:
     
-    def __init__(self, hidden1_size=64, hidden2_size=32, epochs=10, lr=0.1, data=None):
+    def __init__(self, hidden1_size=64, hidden2_size=32, epochs=10, lr=0.1, data=None, type=None):
         self.hidden1_size = hidden1_size
         self.hidden2_size = hidden2_size
         self.epochs = epochs
         self.lr = lr
         self.data = data if data is not None else self.load_mnist_data()
+        self.type = type.value if type is not None else None
         print(self.hidden1_size, self.hidden2_size, self.epochs, f"{self.lr:.2f}")
         self.load_training_data_set()
 
@@ -49,7 +51,7 @@ class MnistNeuralNet:
     def cross_entropy(self, pred, target):
         return -np.mean(np.sum(target * np.log(pred + 1e-9), axis=1))
 
-    # Forward pass through the network
+    # Forward pass through the network returns the output for display
     def test_forward(self, X):
         z1 = np.dot(X, self.W1) + self.b1
         a1 = self.relu(z1)
@@ -82,8 +84,8 @@ class MnistNeuralNet:
         y_train = self.one_hot(y_train)
 
         # Initializes weights and biases for a 3-layer neural network
-        # Input layer: 784 neurons (28x28 pixels) connected to hidden layer 1 with 128 neurons
-        self.W1 = np.random.randn(784, self.hidden1_size) * 0.01
+        # Input layer: input neurons based on size of image connected to hidden layer 1 with 128 neurons
+        self.W1 = np.random.randn(X_train[0].size, self.hidden1_size) * 0.01
         self.b1 = np.zeros((1, self.hidden1_size))
 
         # Hidden layer: 128 neurons connected to hidden layer 2 with 64 neurons
@@ -114,7 +116,7 @@ class MnistNeuralNet:
             print(f"Epoch {epoch+1}, Loss: {total_loss:.4f}")
 
         np.savez(
-            f"training_data/nodes({self.hidden1_size}, {self.hidden2_size}) epoch({self.epochs}) lr({self.lr:.2f}).npz",
+            f"training_data/{self.type} n({self.hidden1_size}, {self.hidden2_size}) ep({self.epochs}) lr({self.lr:.2f}).npz",
             W1 = self.W1,
             b1 = self.b1,
             W2 = self.W2,
@@ -125,14 +127,14 @@ class MnistNeuralNet:
 
     def load_training_data_set(self):
         try:
-            training_data = np.load(f"training_data/nodes({self.hidden1_size}, {self.hidden2_size}) epoch({self.epochs}) lr({self.lr:.2f}).npz")
+            training_data = np.load(f"training_data/{self.type} n({self.hidden1_size}, {self.hidden2_size}) ep({self.epochs}) lr({self.lr:.2f}).npz")
         except FileNotFoundError:
             training_data = None
 
         if training_data is None:
             print("Training data not found. Please wait while neural network trains first.")
             self.train_new_data_set()
-            training_data = np.load(f"training_data/nodes({self.hidden1_size}, {self.hidden2_size}) epoch({self.epochs}) lr({self.lr:.2f}).npz")
+            training_data = np.load(f"training_data/{self.type} n({self.hidden1_size}, {self.hidden2_size}) ep({self.epochs}) lr({self.lr:.2f}).npz")
         else:
             print("Training data found. Loading weights and biases...")
             # loads the weights and bias based of trained data
