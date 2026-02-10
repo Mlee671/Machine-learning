@@ -8,7 +8,7 @@ from matplotlib.widgets import Button
 
 def show_screen(ai_model):
     global canvas, drawing
-
+    print("Setting up the drawing canvas...")
     drawing = False
     image_set = ai_model.get_images()
     image_size = image_set[0].shape
@@ -17,9 +17,9 @@ def show_screen(ai_model):
     # Create empty canvas based on image size
     canvas = np.zeros(image_size, dtype=np.float32)
 
-    fig, ax = plt.subplots(figsize=(16, 6))
+    fig1, ax = plt.subplots(figsize=(16, 6))
     plt.subplots_adjust(right=0.75)
-
+    fig1.suptitle("drawing and testing")
     # Show canvas
     img = ax.imshow(canvas, cmap="gray", vmin=0, vmax=1)
     ax.set_title("Draw a digit or test images using slider")
@@ -105,7 +105,7 @@ def show_screen(ai_model):
             draw_pixel(x, y, radius=1)
             img.set_data(canvas)
             update_prediction()
-            fig.canvas.draw_idle()
+            fig1.canvas.draw_idle()
 
     def clear_canvas(event):
         canvas[:] = 0.0   # white canvas (use 0.0 if black background)
@@ -113,7 +113,7 @@ def show_screen(ai_model):
         for s in [s1, s2, s3, s4]:
             s.reset()
         update_prediction()
-        fig.canvas.draw_idle()
+        fig1.canvas.draw_idle()
 
     # Function to update image and predictions when slider moves
     def update(val):
@@ -122,7 +122,7 @@ def show_screen(ai_model):
         canvas[:] = image.astype(np.float32) / 255.0
         img.set_data(canvas)
         update_prediction()
-        fig.canvas.draw_idle()
+        fig1.canvas.draw_idle()
 
     def train(event):
         new_param = []
@@ -133,19 +133,20 @@ def show_screen(ai_model):
         ai_model.set_parameters(int(new_param[0]), int(new_param[1]), int(new_param[2]), new_param[3])
         cache.append(new_param)
         # Reload trained data
+        plt.close()  # Close current plot to free resources
         ai_model.load_training_data_set()
-        update(val=slider.val)  # Update the display with new model predictions
+        show_screen(ai_model)  # Recreate the screen with updated model
     
     # Bind events
-    fig.canvas.mpl_connect("button_press_event", on_press)
-    fig.canvas.mpl_connect("button_release_event", on_release)
-    fig.canvas.mpl_connect("motion_notify_event", on_move)
+    fig1.canvas.mpl_connect("button_press_event", on_press)
+    fig1.canvas.mpl_connect("button_release_event", on_release)
+    fig1.canvas.mpl_connect("motion_notify_event", on_move)
     slider.on_changed(update)
     clear_button.on_clicked(clear_canvas)
     training_button.on_clicked(train)
 
     update(val=0)  # Initial update to show first image and predictions
-    fig.canvas.draw_idle()
+    fig1.canvas.draw_idle()
 
     plt.show()
 

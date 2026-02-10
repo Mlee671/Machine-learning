@@ -1,6 +1,8 @@
 
+import threading
+from matplotlib import pyplot as plt
 import numpy as np
-from pyparsing import Enum
+import time
 
 class MnistNeuralNet:
     
@@ -65,65 +67,120 @@ class MnistNeuralNet:
         return output
 
     def train_new_data_set(self):
+        global training_done
+        test_accuracy_history = []
+        train_accuracy_history = []
+        training_done = False
 
-        batch_size = self.hidden1_size
+        def train_network(self = self):
+            global training_done
+            
+            batch_size = self.hidden1_size
 
-        X_train = self.data["x_train"]  # Avoid modifying original data
-        y_train = self.data["y_train"]  # Avoid modifying original labels
-        x_test  = self.data["x_test"]   # Avoid modifying original test data
+            X_train = self.data["x_train"]  # Avoid modifying original data
+            y_train = self.data["y_train"]  # Avoid modifying original labels
+            x_test  = self.data["x_test"]   # Avoid modifying original test data
 
-        # Reshapes the 28x28 images into 784-dimensional vectors
-        X_train = X_train.reshape(X_train.shape[0], -1)
-        X_test = x_test.reshape(x_test.shape[0], -1)
+            # Reshapes the 28x28 images into 784-dimensional vectors
+            X_train = X_train.reshape(X_train.shape[0], -1)
+            X_test = x_test.reshape(x_test.shape[0], -1)
 
-        # Normalizes pixel values to the range [0, 1]
-        X_train = X_train.astype(np.float32) / 255.0
-        X_test = X_test.astype(np.float32) / 255.0
+            # Normalizes pixel values to the range [0, 1]
+            X_train = X_train.astype(np.float32) / 255.0
+            X_test = X_test.astype(np.float32) / 255.0
 
-        # transforms the test answers into one hot encoding
-        y_train = self.one_hot(y_train)
+            # transforms the test answers into one hot encoding
+            y_train = self.one_hot(y_train)
+            y_test = self.one_hot(self.data["y_test"])
 
-        # Initializes weights and biases for a 3-layer neural network
-        # Input layer: input neurons based on size of image connected to hidden layer 1 with 128 neurons
-        self.W1 = np.random.randn(X_train[0].size, self.hidden1_size) * 0.01
-        self.b1 = np.zeros((1, self.hidden1_size))
+            # Initializes weights and biases for a 3-layer neural network
+            # Input layer: input neurons based on size of image connected to hidden layer 1 with 128 neurons
+            self.W1 = np.random.randn(X_train[0].size, self.hidden1_size) * 0.01
+            self.b1 = np.zeros((1, self.hidden1_size))
 
-        # Hidden layer: 128 neurons connected to hidden layer 2 with 64 neurons
-        self.W2 = np.random.randn(self.hidden1_size, self.hidden2_size) * 0.01
-        self.b2 = np.zeros((1, self.hidden2_size))
+            # Hidden layer: 128 neurons connected to hidden layer 2 with 64 neurons
+            self.W2 = np.random.randn(self.hidden1_size, self.hidden2_size) * 0.01
+            self.b2 = np.zeros((1, self.hidden2_size))
 
-        # hidden layer 2: 64 neurons connected to output layer with 10 neurons (for 10 classes)
-        self.W3 = np.random.randn(self.hidden2_size, 10) * 0.01
-        self.b3 = np.zeros((1, 10))
+            # hidden layer 2: 64 neurons connected to output layer with 10 neurons (for 10 classes)
+            self.W3 = np.random.randn(self.hidden2_size, 10) * 0.01
+            self.b3 = np.zeros((1, 10))
+            # Shared data
 
-        for epoch in range(self.epochs):
-            perm = np.random.permutation(len(X_train))
-            X_train = X_train[perm]
-            y_train = y_train[perm]
+            test_accuracy = 0.0
+            train_accuracy = 0.0
+            
+            for epoch in range(self.epochs):
+                perm = np.random.permutation(len(X_train))
+                X_train = X_train[perm]
+                y_train = y_train[perm]
 
-            total_loss = 0
+                for i in range(0, len(X_train), batch_size):
+                    X_batch = X_train[i:i+batch_size]
+                    y_batch = y_train[i:i+batch_size]
 
-            for i in range(0, len(X_train), batch_size):
-                X_batch = X_train[i:i+batch_size]
-                y_batch = y_train[i:i+batch_size]
+                    _, cache = self.forward(X_batch)
+                    self.backward(cache, y_batch, self.lr)
+                    
+                train_accuracy = np.mean(np.argmax(self.test_forward(X_train), axis=1) == np.argmax(y_train, axis=1)) * 100
+                test_accuracy = np.mean(np.argmax(self.test_forward(X_test), axis=1) == np.argmax(y_test, axis=1)) * 100
+                    
+                print(f"{train_accuracy:.2f}% train accuracy, {test_accuracy:.2f}% test accuracy")    
+                
+                train_accuracy_history.append(train_accuracy)
+                test_accuracy_history.append(test_accuracy)
 
-                preds, cache = self.forward(X_batch)
-                loss = self.cross_entropy(preds, y_batch)
-                self.backward(cache, y_batch, self.lr)
+            np.savez(
+                f"training_data/{self.type} n({self.hidden1_size}, {self.hidden2_size}) ep({self.epochs}) lr({self.lr:.2f}).npz",
+                W1 = self.W1,
+                b1 = self.b1,
+                W2 = self.W2,
+                b2 = self.b2,
+                W3 = self.W3,
+                b3 = self.b3
+            )
+            
+            print("Training complete. Weights and biases saved.")
+            training_done = True
 
-                total_loss += loss
 
-            print(f"Epoch {epoch+1}, Loss: {total_loss:.4f}")
+        # Start training in background
+        threading.Thread(target=train_network, daemon=True).start()
 
-        np.savez(
-            f"training_data/{self.type} n({self.hidden1_size}, {self.hidden2_size}) ep({self.epochs}) lr({self.lr:.2f}).npz",
-            W1 = self.W1,
-            b1 = self.b1,
-            W2 = self.W2,
-            b2 = self.b2,
-            W3 = self.W3,
-            b3 = self.b3
-        )
+        # --- Plot setup ---
+        fig, ax = plt.subplots(figsize=(16, 6))
+        fig.suptitle("training")
+        line_test, = ax.plot([], [], label="test_accuracy", color="blue")
+        line_train,  = ax.plot([], [], label="train_accuracy", color="orange")
+        ax.legend()
+        ax.set_xlabel("Epoch")
+        ax.set_ylabel("Accuracy")
+        ax.set_title("Training in progress...")
+        ax.set_xlim(1, self.epochs)
+        ax.set_ylim(50, 100)
+        
+        # --- Live update loop ---
+        while not training_done:
+            plt.pause(0.1)
+
+            if len(train_accuracy_history) > 0:
+                
+                y_length = np.arange(1, len(train_accuracy_history) + 1)
+                
+                line_test.set_data(y_length, test_accuracy_history)
+                line_train.set_data(y_length, train_accuracy_history)
+
+                ax.set_ylim(int(train_accuracy_history[0]), min(100, int(train_accuracy_history[-1]) + 20))
+                
+                ax.relim()
+                plt.draw()
+
+        ax.set_title("Training complete")
+        plt.ioff()        # turn OFF interactive mode
+        plt.show()          # let user close window
+        plt.close() 
+
+        
 
     def load_training_data_set(self):
         try:
@@ -134,6 +191,7 @@ class MnistNeuralNet:
         if training_data is None:
             print("Training data not found. Please wait while neural network trains first.")
             self.train_new_data_set()
+            print("Training complete. Loading trained weights and biases...")
             training_data = np.load(f"training_data/{self.type} n({self.hidden1_size}, {self.hidden2_size}) ep({self.epochs}) lr({self.lr:.2f}).npz")
         else:
             print("Training data found. Loading weights and biases...")
